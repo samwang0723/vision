@@ -1,7 +1,9 @@
-import { App, SlackCommandMiddlewareArgs, BlockButtonAction } from '@slack/bolt';
+import { App, BlockButtonAction } from '@slack/bolt';
 import config from '@config/index';
 import logger from '@utils/logger';
-import { SlackMessage, SlackMessageResponse } from '@models/slack';
+import { analysisHandler } from '@/domains/slack/analysis';
+import { actionHandler } from '@/domains/slack/action';
+import { messageHandler } from '@/domains/slack/message';
 
 // Initializes your app in socket mode with your app token and signing secret
 const app = new App({
@@ -13,47 +15,13 @@ const app = new App({
 });
 
 // The analysis command simply echoes on command
-app.command('/analysis', async ({ command, ack, respond }: SlackCommandMiddlewareArgs): Promise<void> => {
-  // Acknowledge command request
-  await ack();
-  await respond(`${command.text}`);
-});
+app.command('/analysis', analysisHandler);
 
 // Listens to incoming messages that contain "hello"
-app.message('hello', async ({ message, say }): Promise<void> => {
-  const msg = message as SlackMessage;
-  // say() sends a message to the channel where the event was triggered
-  logger.info('Received message:', msg);
+app.message('hello', messageHandler);
 
-  const response: SlackMessageResponse = {
-    blocks: [
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `Hey there <@${msg.user}>!`,
-        },
-        accessory: {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: 'Click Me',
-          },
-          action_id: 'button_click',
-        },
-      },
-    ],
-    text: `Hey there <@${msg.user}>!`,
-  };
-
-  await say(response);
-});
-
-app.action<BlockButtonAction>('button_click', async ({ body, ack, respond }): Promise<void> => {
-  // Acknowledge the action
-  await ack();
-  await respond(`<@${body.user.id}> clicked the button`);
-});
+// Handle button clicks
+app.action<BlockButtonAction>('button_click', actionHandler);
 
 (async (): Promise<void> => {
   try {
