@@ -11,18 +11,21 @@ A Node.js application for Slack bot integration.
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/samwang0723/vision.git
 cd vision
 ```
 
-2. Install dependencies:
+1. Install dependencies:
+
 ```bash
 make install
 # or manually: npm install
 ```
 
-3. Set up environment variables:
+1. Set up environment variables:
+
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
@@ -31,6 +34,7 @@ cp .env.example .env
 ## Development
 
 Start the development server:
+
 ```bash
 make dev
 # or manually: npm run dev
@@ -62,7 +66,7 @@ LOG_LEVEL=debug  # Options: error, warn, info, debug
 
 ## Project Structure
 
-```
+```text
 vision/
 ├── src/              # Source code
 │   ├── config/       # Configuration files
@@ -82,11 +86,15 @@ vision/
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+
+1. Create your feature branch (`git checkout -b feature/amazing-feature`)
+
+1. Commit your changes (`git commit -m 'Add some amazing feature'`)
+
+1. Push to the branch (`git push origin feature/amazing-feature`)
+
+1. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
