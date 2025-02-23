@@ -17,8 +17,8 @@ const app = new App({
 // The analysis command simply echoes on command
 app.command('/analysis', analysisHandler);
 
-// Listens to incoming messages that contain "hello"
-app.message('hello', messageHandler);
+// Listens to all incoming messages
+app.message(messageHandler);
 
 // Handle button clicks
 app.action<BlockButtonAction>('confluence_search', actionHandler);

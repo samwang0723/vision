@@ -82,7 +82,7 @@ async function callTool(toolBlock: ToolUseBlock): Promise<MessageParam> {
   const { name, id, input } = toolBlock;
   const tool = tools.find(tool => tool.name === name);
   if (tool) {
-    const toolOutput = await runTool(name, input);
+    const toolOutput = await runTool(name, input as Record<string, any>);
     return {
       role: 'user',
       content: [

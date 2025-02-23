@@ -11,25 +11,33 @@ export const messageHandler = async ({
   const msg = message as SlackMessage;
   logger.info('Received message:', msg);
 
+  // Ignore messages from bots to prevent potential loops
+  if (msg.text === undefined || msg.subtype === 'bot_message') {
+    return;
+  }
+
+  // Process the message here
+  // You can add your custom logic to handle different types of messages
   const response: SlackMessageResponse = {
     blocks: [
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `Hey there <@${msg.user}>!`,
+          text: `Received your message: "${msg.text}"\nHow may I help you today Sir?`,
         },
         accessory: {
           type: 'button',
           text: {
             type: 'plain_text',
-            text: 'Click Me',
+            text: 'Search Confluence',
           },
           action_id: 'confluence_search',
+          value: msg.text,
         },
       },
     ],
-    text: `Hey there <@${msg.user}>!`,
+    text: `Received your message: "${msg.text}"\nHow may I help you today Sir?`,
   };
 
   await say(response);

@@ -25,6 +25,7 @@ export const actionHandler = async ({
 
   if (body.actions[0].action_id === 'confluence_search') {
     try {
+      const originalMessage = body.actions[0].value;
       const primitives = await handleMCPCommand({
         url: config.confluence.baseUrl,
         username: config.confluence.apiUser,
@@ -32,7 +33,7 @@ export const actionHandler = async ({
       });
       mapToolsToAnthropic(primitives);
       const response = await callClaude(
-        'Please search on confluence under space=TMAB using cql on what is the fiat openpayd vendor_id?'
+        `Please search on confluence under space=TMAB using cql for the following query: ${originalMessage}`
       ).then(processResponse);
 
       const textContent = response?.content
@@ -40,7 +41,27 @@ export const actionHandler = async ({
         .map((content: any) => content.text)
         .join('\n');
 
-      await respond(textContent || 'No response content available');
+      await respond({
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*Search Results:*\n${textContent || 'No results found'}`,
+            },
+          },
+          {
+            type: 'context',
+            elements: [
+              {
+                type: 'mrkdwn',
+                text: `🔍 Search query: "${originalMessage}"`,
+              },
+            ],
+          },
+        ],
+        text: textContent || 'No response content available',
+      });
     } catch (error: any) {
       logger.error('Failed to execute Confluence search:', error);
       await respond(
