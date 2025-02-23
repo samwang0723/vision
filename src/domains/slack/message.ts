@@ -1,10 +1,13 @@
 import { AllMiddlewareArgs, SlackEventMiddlewareArgs } from '@slack/bolt';
-import { SlackMessage, SlackMessageResponse } from './model';
+import { SlackMessage, SlackMessageResponse } from './types';
 import logger from '@utils/logger';
 
 type MessageArgs = SlackEventMiddlewareArgs<'message'> & AllMiddlewareArgs;
 
-export const messageHandler = async ({ message, say }: MessageArgs): Promise<void> => {
+export const messageHandler = async ({
+  message,
+  say,
+}: MessageArgs): Promise<void> => {
   const msg = message as SlackMessage;
   logger.info('Received message:', msg);
 
@@ -30,4 +33,4 @@ export const messageHandler = async ({ message, say }: MessageArgs): Promise<voi
   };
 
   await say(response);
-}; 
+};

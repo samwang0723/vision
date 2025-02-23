@@ -32,4 +32,4 @@ app.action<BlockButtonAction>('button_click', actionHandler);
     logger.error('Failed to start app:', error);
     throw error;
   }
-})(); 
+})();

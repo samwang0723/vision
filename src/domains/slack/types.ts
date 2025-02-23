@@ -25,4 +25,4 @@ export interface SlackBlock {
 export interface SlackMessageResponse {
   blocks: SlackBlock[];
   text: string;
-} 
+}
