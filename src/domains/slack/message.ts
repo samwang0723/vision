@@ -25,7 +25,7 @@ export const messageHandler = async ({
             type: 'plain_text',
             text: 'Click Me',
           },
-          action_id: 'button_click',
+          action_id: 'confluence_search',
         },
       },
     ],

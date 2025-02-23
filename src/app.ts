@@ -21,7 +21,7 @@ app.command('/analysis', analysisHandler);
 app.message('hello', messageHandler);
 
 // Handle button clicks
-app.action<BlockButtonAction>('button_click', actionHandler);
+app.action<BlockButtonAction>('confluence_search', actionHandler);
 
 (async (): Promise<void> => {
   try {

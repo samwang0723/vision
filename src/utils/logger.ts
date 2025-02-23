@@ -12,13 +12,28 @@ const logger: CustomLogger = winston.createLogger({
   level: config.logging.level,
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.json()
+    winston.format.printf(({ timestamp, level, message, ...rest }) => {
+      const args = Object.keys(rest).length
+        ? JSON.stringify(rest, null, 2)
+        : '';
+      return `${timestamp} ${level}: ${message} ${args}`;
+    })
   ),
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
-        winston.format.simple()
+        winston.format.printf(({ timestamp, level, message, ...rest }) => {
+          let args = '';
+          if (typeof message === 'object') {
+            args = JSON.stringify(message, null, 2);
+            message = '';
+          }
+          const extraArgs = Object.keys(rest).length
+            ? JSON.stringify(rest, null, 2)
+            : '';
+          return `${timestamp} ${level}: ${message} ${args} ${extraArgs}`.trim();
+        })
       ),
     }),
     new winston.transports.File({ filename: 'error.log', level: 'error' }),
