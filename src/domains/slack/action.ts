@@ -7,7 +7,7 @@ import {
   callClaude,
   processResponse,
 } from '@domains/anthropic/service';
-import { handleMCPCommand } from '@domains/atlassian/command';
+import { startConfluenceMcpServer } from '@domains/atlassian/command';
 import { app } from '@/app';
 
 export interface ConfluenceConfig {
@@ -27,7 +27,7 @@ export const actionHandler = async ({
   if (body.actions[0].action_id === 'confluence_search') {
     try {
       const originalMessage = body.actions[0].value;
-      const primitives = await handleMCPCommand({
+      const primitives = await startConfluenceMcpServer({
         url: config.confluence.baseUrl,
         username: config.confluence.apiUser,
         token: config.confluence.apiKey,
@@ -61,7 +61,7 @@ export const actionHandler = async ({
       const UPDATE_INTERVAL = 800; // 0.8 seconds in milliseconds
       let updatePending = false;
 
-      const updateSlackMessage = async () => {
+      const updateSlackMessage = async (): Promise<void> => {
         try {
           await app.client.chat.update({
             token: config.slack.botToken,
@@ -95,7 +95,7 @@ export const actionHandler = async ({
         }
       };
 
-      const scheduleUpdate = () => {
+      const scheduleUpdate = (): void => {
         if (updatePending) {
           return;
         }
@@ -117,7 +117,7 @@ export const actionHandler = async ({
         }
       };
 
-      const onStream = async (text: string) => {
+      const onStream = async (text: string): Promise<void> => {
         accumulatedText += text;
         scheduleUpdate();
       };

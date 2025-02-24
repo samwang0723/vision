@@ -5,30 +5,33 @@ import { Message, Tool } from '@anthropic-ai/sdk/resources/messages/messages';
 import { ToolUseBlock } from '@anthropic-ai/sdk/resources/messages/messages';
 import { MessageParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { runTool } from '@domains/mcp/mcp';
+import { Primitive } from '@domains/mcp/types';
 
 const messages: MessageParam[] = [];
-let tools: Tool[] = [];
+const tools: Tool[] = [];
 
 export const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
 });
 
-export function mapToolsToAnthropic(primitives: any): void {
+export function mapToolsToAnthropic(primitives: Primitive[]): void {
   if (!primitives || !Array.isArray(primitives)) {
     return;
   }
 
-  tools = primitives
-    .filter((p: any) => p.type === 'tool')
-    .map((p: any) => ({
+  const filteredTools = primitives
+    .filter((p: Primitive) => p.type === 'tool')
+    .map((p: Primitive) => ({
       name: p.value.name,
       description: p.value.description,
       input_schema: {
-        type: 'object',
+        type: 'object' as const,
         properties: p.value.inputSchema.properties,
         required: p.value.inputSchema.required,
       },
     }));
+
+  tools.push(...filteredTools);
 }
 
 export async function callClaude(

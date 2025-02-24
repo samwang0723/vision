@@ -2,10 +2,11 @@
 import logger from '@/utils/logger';
 import { ConfluenceConfig } from '@domains/slack/action';
 import { runWithCommand } from '@domains/mcp/mcp';
+import { Primitive } from '@domains/mcp/types';
 
-export async function handleMCPCommand(
+export async function startConfluenceMcpServer(
   confluenceConfig: ConfluenceConfig
-): Promise<any> {
+): Promise<Primitive[]> {
   try {
     const command = 'uvx';
     const args = [
@@ -14,8 +15,6 @@ export async function handleMCPCommand(
       `--confluence-username=${confluenceConfig.username}`,
       `--confluence-token=${confluenceConfig.token}`,
     ];
-
-    logger.info('>> Running MCP command:', command, args);
 
     return await runWithCommand(command, args);
   } catch (error) {

@@ -4,11 +4,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { LoggingMessageNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { Console } from 'node:console';
-
-interface Primitive {
-  type: 'resource' | 'tool' | 'prompt';
-  value: any;
-}
+import { Primitive } from '@domains/mcp/types';
 
 let client: Client | null = null;
 const logger: Console = new Console({
