@@ -46,7 +46,7 @@ export const messageHandler = async ({
     // Process with Claude
     const response = await callClaude(msg.text, msg.user, text => {
       messageUpdater.update(text);
-    }, true);
+    });
 
     // Check if response is a tool use
     const toolUseBlocks = response?.content.filter(

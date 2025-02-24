@@ -1,41 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Anthropic from '@anthropic-ai/sdk';
 import config from '@/config';
-import { Message, Tool } from '@anthropic-ai/sdk/resources/messages/messages';
+import type { Message } from '@anthropic-ai/sdk/resources/messages';
+import { Tool } from '@anthropic-ai/sdk/resources/messages/messages';
 import { ToolUseBlock } from '@anthropic-ai/sdk/resources/messages/messages';
 import { MessageParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { runTool } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
 import logger from '@/utils/logger';
-
-class MessageQueueManager {
-  private messageQueues: Map<string, MessageParam[]>;
-
-  constructor() {
-    this.messageQueues = new Map();
-  }
-
-  getQueue(userId: string): MessageParam[] {
-    if (!this.messageQueues.has(userId)) {
-      this.messageQueues.set(userId, []);
-    }
-    return this.messageQueues.get(userId)!;
-  }
-
-  resetQueue(userId: string): void {
-    this.messageQueues.set(userId, []);
-  }
-
-  addMessage(userId: string, message: MessageParam): void {
-    const queue = this.getQueue(userId);
-    queue.push(message);
-  }
-
-  addMessages(userId: string, messages: MessageParam[]): void {
-    const queue = this.getQueue(userId);
-    queue.push(...messages);
-  }
-}
+import { MessageQueueManager } from './messageQueue';
 
 const messageManager = new MessageQueueManager();
 const tools: Tool[] = [];
@@ -73,6 +46,7 @@ export async function callClaude(
   if (resetMessages) {
     messageManager.resetQueue(userId);
   }
+  logger.info('messages', { prompt, userId });
 
   if (Array.isArray(prompt)) {
     messageManager.addMessages(userId, prompt);
@@ -83,7 +57,9 @@ export async function callClaude(
     });
   }
 
-  const messages = messageManager.getQueue(userId);
+  const messages = messageManager.getQueue(userId, 6);
+  logger.info('messages', { messages });
+  logger.info('--------------------------------');
   const stream = anthropic.messages
     .stream({
       model: 'claude-3-5-sonnet-latest',
@@ -97,8 +73,13 @@ export async function callClaude(
     });
 
   const message = await stream.finalMessage();
-  messageManager.addMessage(userId, { role: 'assistant', content: message.content });
-  logger.info('message', message);
+  messageManager.addMessage(userId, {
+    role: 'assistant',
+    content: message.content,
+  });
+  logger.info('message', messageManager.getQueue(userId, 6));
+  logger.info('===============================');
+
   return message;
 }
 
@@ -108,7 +89,7 @@ export async function processResponse(
   onStream?: (text: string) => void
 ): Promise<Message | void> {
   const toolUseBlocks = response.content.filter(
-    (content): content is ToolUseBlock => content.type === 'tool_use'
+    (content: any): content is ToolUseBlock => content.type === 'tool_use'
   );
 
   if (toolUseBlocks.length) {
