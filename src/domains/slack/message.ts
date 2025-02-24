@@ -1,6 +1,5 @@
 import { AllMiddlewareArgs, SlackEventMiddlewareArgs } from '@slack/bolt';
 import { SlackMessage, SlackMessageResponse } from './types';
-import logger from '@utils/logger';
 
 type MessageArgs = SlackEventMiddlewareArgs<'message'> & AllMiddlewareArgs;
 

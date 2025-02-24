@@ -2,13 +2,10 @@
 import { SlackActionMiddlewareArgs, BlockButtonAction } from '@slack/bolt';
 import logger from '@utils/logger';
 import config from '@config/index';
-import {
-  mapToolsToAnthropic,
-  callClaude,
-  processResponse,
-} from '@domains/anthropic/service';
-import { startConfluenceMcpServer } from '@domains/atlassian/command';
+import { callClaude, processResponse } from '@domains/anthropic/service';
 import { app } from '@/app';
+import { createSearchMessageBlocks } from './utils';
+import { MessageUpdater } from './MessageUpdater';
 
 export interface ConfluenceConfig {
   url: string;
@@ -22,112 +19,42 @@ export const actionHandler = async ({
   respond,
 }: SlackActionMiddlewareArgs<BlockButtonAction>): Promise<void> => {
   await ack();
-  logger.info('Received action:', body);
-
   if (body.actions[0].action_id === 'confluence_search') {
     try {
-      const originalMessage = body.actions[0].value;
-      const primitives = await startConfluenceMcpServer({
-        url: config.confluence.baseUrl,
-        username: config.confluence.apiUser,
-        token: config.confluence.apiKey,
-      });
-      mapToolsToAnthropic(primitives);
+      const query = body.actions[0].value;
+      if (!query) {
+        throw new Error('Search query is required');
+      }
 
-      // Send initial response
+      // Send initial message
       const initialResponse = await app.client.chat.postMessage({
         token: config.slack.botToken,
         channel: body.container.channel_id,
-        blocks: [
-          {
-            type: 'section',
-            text: {
-              type: 'mrkdwn',
-              text: '*Searching Confluence...*',
-            },
-          },
-        ],
-        text: 'Searching Confluence...',
+        ...createSearchMessageBlocks({ text: '', query, isSearching: true }),
       });
 
-      // Store the message timestamp for updates
-      const messageTs = initialResponse.message?.ts;
-      if (!messageTs) {
+      if (!initialResponse.message?.ts) {
         throw new Error('Failed to get message timestamp');
       }
 
-      let accumulatedText = '';
-      let debounceSlackUpdateTime = performance.now();
-      const UPDATE_INTERVAL = 800; // 0.8 seconds in milliseconds
-      let updatePending = false;
+      // Initialize message updater
+      const messageUpdater = new MessageUpdater(
+        app,
+        body.container.channel_id,
+        initialResponse.message.ts,
+        config.slack.botToken,
+        query
+      );
 
-      const updateSlackMessage = async (): Promise<void> => {
-        try {
-          await app.client.chat.update({
-            token: config.slack.botToken,
-            channel: body.container.channel_id,
-            ts: messageTs,
-            blocks: [
-              {
-                type: 'section',
-                text: {
-                  type: 'mrkdwn',
-                  text: `*Search Results:*\n${accumulatedText}`,
-                },
-              },
-              {
-                type: 'context',
-                elements: [
-                  {
-                    type: 'mrkdwn',
-                    text: `🔍 Search query: "${originalMessage}"`,
-                  },
-                ],
-              },
-            ],
-            text: accumulatedText,
-          });
-          debounceSlackUpdateTime = performance.now();
-          updatePending = false;
-        } catch (updateError) {
-          logger.error('Failed to update Slack message:', updateError);
-          updatePending = false;
-        }
-      };
-
-      const scheduleUpdate = (): void => {
-        if (updatePending) {
-          return;
-        }
-
-        const now = performance.now();
-        const timeUntilNextUpdate = Math.max(
-          0,
-          UPDATE_INTERVAL - (now - debounceSlackUpdateTime)
-        );
-
-        if (timeUntilNextUpdate === 0) {
-          updatePending = true;
-          updateSlackMessage();
-        } else {
-          updatePending = true;
-          setTimeout(() => {
-            updateSlackMessage();
-          }, timeUntilNextUpdate);
-        }
-      };
-
-      const onStream = async (text: string): Promise<void> => {
-        accumulatedText += text;
-        scheduleUpdate();
-      };
-
+      // Process search
       const response = await callClaude(
-        `Please search on confluence under space=TMAB using cql for the following query: ${originalMessage}`,
-        onStream
-      ).then(response => processResponse(response, onStream));
+        `Please search on confluence under space=TMAB using cql for the following query: ${query}`,
+        text => messageUpdater.update(text)
+      ).then(response =>
+        processResponse(response, text => messageUpdater.update(text))
+      );
 
-      // Ensure final state is shown
+      // Show final results
       const textContent = response?.content
         .filter((content: any) => content.type === 'text')
         .map((content: any) => content.text)
@@ -136,26 +63,11 @@ export const actionHandler = async ({
       await app.client.chat.update({
         token: config.slack.botToken,
         channel: body.container.channel_id,
-        ts: messageTs,
-        blocks: [
-          {
-            type: 'section',
-            text: {
-              type: 'mrkdwn',
-              text: `*Search Results:*\n${textContent || 'No results found'}`,
-            },
-          },
-          {
-            type: 'context',
-            elements: [
-              {
-                type: 'mrkdwn',
-                text: `🔍 Search query: "${originalMessage}"`,
-              },
-            ],
-          },
-        ],
-        text: textContent || 'No response content available',
+        ts: initialResponse.message.ts,
+        ...createSearchMessageBlocks({
+          text: textContent || 'No results found',
+          query,
+        }),
       });
     } catch (error: any) {
       logger.error('Failed to execute Confluence search:', error);

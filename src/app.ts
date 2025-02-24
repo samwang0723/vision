@@ -4,6 +4,7 @@ import logger from '@utils/logger';
 import { analysisHandler } from '@/domains/slack/analysis';
 import { actionHandler } from '@/domains/slack/action';
 import { messageHandler } from '@/domains/slack/message';
+import { initConfluenceTools } from './domains/atlassian/command';
 
 // Initializes your app in socket mode with your app token and signing secret
 export const app = new App({
@@ -25,11 +26,11 @@ app.action<BlockButtonAction>('confluence_search', actionHandler);
 
 (async (): Promise<void> => {
   try {
-    // Start your app
+    await initConfluenceTools();
     await app.start();
     logger.info('⚡️ Bolt app is running!');
   } catch (error) {
     logger.error('Failed to start app:', error);
-    throw error;
+    process.exit(1);
   }
 })();
