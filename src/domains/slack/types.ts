@@ -32,4 +32,7 @@ export interface SlackBlock {
 export interface SlackMessageResponse {
   blocks: SlackBlock[];
   text: string;
+  replace_original?: boolean; // Whether to replace the original message
+  delete_original?: boolean; // Whether to delete the original message
+  response_type?: 'in_channel' | 'ephemeral'; // Response visibility
 }

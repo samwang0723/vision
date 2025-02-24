@@ -9,10 +9,10 @@ export const messageHandler = async ({
   say,
 }: MessageArgs): Promise<void> => {
   const msg = message as SlackMessage;
-  logger.info('Received message:', msg);
+  // logger.info('Received message:', msg);
 
   // Ignore messages from bots to prevent potential loops
-  if (msg.text === undefined || msg.subtype === 'bot_message') {
+  if (msg.text === undefined || msg.subtype) {
     return;
   }
 
@@ -24,7 +24,7 @@ export const messageHandler = async ({
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `Received your message: "${msg.text}"\nHow may I help you today Sir?`,
+          text: `Received your message: "${msg.text}"\nPlease grant permission to access Confluence`,
         },
         accessory: {
           type: 'button',
@@ -37,7 +37,7 @@ export const messageHandler = async ({
         },
       },
     ],
-    text: `Received your message: "${msg.text}"\nHow may I help you today Sir?`,
+    text: `Received your message: "${msg.text}"\nPlease grant permission to access Confluence`,
   };
 
   await say(response);

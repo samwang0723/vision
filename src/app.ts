@@ -6,7 +6,7 @@ import { actionHandler } from '@/domains/slack/action';
 import { messageHandler } from '@/domains/slack/message';
 
 // Initializes your app in socket mode with your app token and signing secret
-const app = new App({
+export const app = new App({
   token: config.slack.botToken,
   signingSecret: config.slack.signingSecret,
   socketMode: true,
@@ -17,7 +17,7 @@ const app = new App({
 // The analysis command simply echoes on command
 app.command('/analysis', analysisHandler);
 
-// Listens to all incoming messages
+// Listens to incoming messages that contain "hello"
 app.message(messageHandler);
 
 // Handle button clicks

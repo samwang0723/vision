@@ -32,7 +32,8 @@ export function mapToolsToAnthropic(primitives: any): void {
 }
 
 export async function callClaude(
-  prompt: string | MessageParam[]
+  prompt: string | MessageParam[],
+  onStream?: (text: string) => void
 ): Promise<Message> {
   if (Array.isArray(prompt)) {
     messages.push(...prompt);
@@ -43,22 +44,26 @@ export async function callClaude(
     });
   }
 
-  return anthropic.messages
-    .create({
+  const stream = anthropic.messages
+    .stream({
       model: 'claude-3-5-sonnet-latest',
       temperature: 0.5,
       max_tokens: 2048,
       messages: messages,
       tools: tools,
     })
-    .then(response => {
-      messages.push({ role: 'assistant', content: response.content });
-      return response;
+    .on('text', text => {
+      onStream?.(text);
     });
+
+  const message = await stream.finalMessage();
+  messages.push({ role: 'assistant', content: message.content });
+  return message;
 }
 
 export async function processResponse(
-  response: Message
+  response: Message,
+  onStream?: (text: string) => void
 ): Promise<Message | void> {
   const toolUseBlocks = response.content.filter(
     (content): content is ToolUseBlock => content.type === 'tool_use'
@@ -72,7 +77,9 @@ export async function processResponse(
     );
     const allToolResults = await Promise.all(allToolResultPromises);
 
-    return await callClaude(allToolResults).then(processResponse);
+    return await callClaude(allToolResults, onStream).then(response =>
+      processResponse(response, onStream)
+    );
   }
 
   return response;
