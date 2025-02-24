@@ -30,7 +30,7 @@ export const createSearchMessageBlocks = ({
       text: {
         type: 'mrkdwn',
         text: isSearching
-          ? '*Searching Confluence...*'
+          ? '*Searching ...*'
           : `*Search Results:*\n${text}`,
       },
     },
@@ -44,5 +44,5 @@ export const createSearchMessageBlocks = ({
       ],
     },
   ],
-  text: isSearching ? 'Searching Confluence...' : text,
+  text: isSearching ? 'Searching ...' : text,
 });

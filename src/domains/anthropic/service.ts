@@ -6,8 +6,38 @@ import { ToolUseBlock } from '@anthropic-ai/sdk/resources/messages/messages';
 import { MessageParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { runTool } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
+import logger from '@/utils/logger';
 
-const messages: MessageParam[] = [];
+class MessageQueueManager {
+  private messageQueues: Map<string, MessageParam[]>;
+
+  constructor() {
+    this.messageQueues = new Map();
+  }
+
+  getQueue(userId: string): MessageParam[] {
+    if (!this.messageQueues.has(userId)) {
+      this.messageQueues.set(userId, []);
+    }
+    return this.messageQueues.get(userId)!;
+  }
+
+  resetQueue(userId: string): void {
+    this.messageQueues.set(userId, []);
+  }
+
+  addMessage(userId: string, message: MessageParam): void {
+    const queue = this.getQueue(userId);
+    queue.push(message);
+  }
+
+  addMessages(userId: string, messages: MessageParam[]): void {
+    const queue = this.getQueue(userId);
+    queue.push(...messages);
+  }
+}
+
+const messageManager = new MessageQueueManager();
 const tools: Tool[] = [];
 
 export const anthropic = new Anthropic({
@@ -36,17 +66,24 @@ export function mapToolsToAnthropic(primitives: Primitive[]): void {
 
 export async function callClaude(
   prompt: string | MessageParam[],
-  onStream?: (text: string) => void
+  userId: string,
+  onStream?: (text: string) => void,
+  resetMessages?: boolean
 ): Promise<Message> {
+  if (resetMessages) {
+    messageManager.resetQueue(userId);
+  }
+
   if (Array.isArray(prompt)) {
-    messages.push(...prompt);
+    messageManager.addMessages(userId, prompt);
   } else {
-    messages.push({
+    messageManager.addMessage(userId, {
       role: 'user',
       content: prompt,
     });
   }
 
+  const messages = messageManager.getQueue(userId);
   const stream = anthropic.messages
     .stream({
       model: 'claude-3-5-sonnet-latest',
@@ -60,12 +97,14 @@ export async function callClaude(
     });
 
   const message = await stream.finalMessage();
-  messages.push({ role: 'assistant', content: message.content });
+  messageManager.addMessage(userId, { role: 'assistant', content: message.content });
+  logger.info('message', message);
   return message;
 }
 
 export async function processResponse(
   response: Message,
+  userId: string,
   onStream?: (text: string) => void
 ): Promise<Message | void> {
   const toolUseBlocks = response.content.filter(
@@ -80,8 +119,8 @@ export async function processResponse(
     );
     const allToolResults = await Promise.all(allToolResultPromises);
 
-    return await callClaude(allToolResults, onStream).then(response =>
-      processResponse(response, onStream)
+    return await callClaude(allToolResults, userId, onStream).then(response =>
+      processResponse(response, userId, onStream)
     );
   }
 

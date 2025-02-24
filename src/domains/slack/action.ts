@@ -49,9 +49,11 @@ export const actionHandler = async ({
       // Process search
       const response = await callClaude(
         `Please search on confluence under space=TMAB using cql for the following query: ${query}`,
-        text => messageUpdater.update(text)
+        body.user.id,
+        text => messageUpdater.update(text),
+        true // reset messages to avoid previous messages interfering with the search
       ).then(response =>
-        processResponse(response, text => messageUpdater.update(text))
+        processResponse(response, body.user.id, text => messageUpdater.update(text))
       );
 
       // Show final results
