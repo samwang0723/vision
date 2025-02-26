@@ -26,8 +26,10 @@ app.action<BlockButtonAction>(/.*/, actionHandler);
 
 (async (): Promise<void> => {
   try {
-    await initConfluenceTools();
-    // await initSumologicTools();
+    // Run initialization functions concurrently
+    await Promise.all([initConfluenceTools(), initSumologicTools()]);
+
+    // Start the Slack app after tools are initialized
     await app.start();
     logger.info('⚡️ Bolt app is running!');
   } catch (error) {

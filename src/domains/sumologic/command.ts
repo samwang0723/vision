@@ -28,7 +28,7 @@ async function startServer(): Promise<Primitive[]> {
       'mcp/sumologic',
     ];
 
-    return await runWithCommand(command, args);
+    return await runWithCommand(command, args, 'sumologic');
   } catch (error) {
     logger.error('Failed to execute MCP command');
     throw error;

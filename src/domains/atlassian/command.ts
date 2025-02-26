@@ -29,7 +29,7 @@ async function startServer(): Promise<Primitive[]> {
       `--jira-token=${config.jira.apiKey}`,
     ];
 
-    return await runWithCommand(command, args);
+    return await runWithCommand(command, args, 'atlassian');
   } catch (error) {
     logger.error('Failed to execute MCP command');
     throw error;
