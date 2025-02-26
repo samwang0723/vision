@@ -34,8 +34,8 @@ export function mapToolsToAnthropic(primitives: Primitive[]): void {
     }));
 
   // Deduplicate tools based on name before adding them
-  const uniqueTools = filteredTools.filter(newTool => 
-    !tools.some(existingTool => existingTool.name === newTool.name)
+  const uniqueTools = filteredTools.filter(
+    newTool => !tools.some(existingTool => existingTool.name === newTool.name)
   );
 
   tools.push(...uniqueTools);
@@ -63,7 +63,7 @@ export async function callClaude(
   const stream = anthropic.messages
     .stream({
       model: 'claude-3-5-sonnet-latest',
-      temperature: 0.5,
+      temperature: 0.3,
       max_tokens: 2048,
       messages: messages,
       tools: tools,

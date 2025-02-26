@@ -27,7 +27,7 @@ app.action<BlockButtonAction>(/.*/, actionHandler);
 (async (): Promise<void> => {
   try {
     await initConfluenceTools();
-    await initSumologicTools();
+    // await initSumologicTools();
     await app.start();
     logger.info('⚡️ Bolt app is running!');
   } catch (error) {
