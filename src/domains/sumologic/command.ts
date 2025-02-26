@@ -5,13 +5,13 @@ import { Primitive } from '@domains/mcp/types';
 import config from '@/config';
 import { mapToolsToAnthropic } from '../anthropic/service';
 
-export async function initConfluenceTools(): Promise<void> {
+export async function initSumologicTools(): Promise<void> {
   try {
     const primitives = await startServer();
     mapToolsToAnthropic(primitives);
-    logger.info('Confluence tools initialized successfully');
+    logger.info('Sumologic tools initialized successfully');
   } catch (error) {
-    logger.error('Failed to initialize Confluence tools:', error);
+    logger.error('Failed to initialize Sumologic tools:', error);
     throw error;
   }
 }
@@ -23,13 +23,10 @@ async function startServer(): Promise<Primitive[]> {
       'run',
       '--rm',
       '-i',
-      `-e CONFLUENCE_URL=${config.confluence.baseUrl}`,
-      `-e CONFLUENCE_USERNAME=${config.confluence.apiUser}`,
-      `-e CONFLUENCE_API_TOKEN=${config.confluence.apiKey}`,
-      `-e JIRA_URL=${config.jira.baseUrl}`,
-      `-e JIRA_USERNAME=${config.jira.apiUser}`,
-      `-e JIRA_API_TOKEN=${config.jira.apiKey}`,
-      'mcp/atlassian',
+      `-e ENDPOINT=${config.sumologic.endpoint}`,
+      `-e SUMO_API_ID=${config.sumologic.accessId}`,
+      `-e SUMO_API_KEY=${config.sumologic.accessKey}`,
+      'mcp/sumologic',
     ];
 
     return await runWithCommand(command, args);

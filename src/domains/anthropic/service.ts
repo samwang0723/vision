@@ -9,9 +9,12 @@ import { runTool } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
 import logger from '@/utils/logger';
 import { MessageQueueManager } from './messageQueue';
+import { initConfluenceTools } from '@domains/atlassian/command';
+import { initSumologicTools } from '../sumologic/command';
 
 const messageManager = new MessageQueueManager();
 const tools: Tool[] = [];
+let toolsInitialized = false;
 
 export const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
@@ -19,6 +22,7 @@ export const anthropic = new Anthropic({
 
 export function mapToolsToAnthropic(primitives: Primitive[]): void {
   if (!primitives || !Array.isArray(primitives)) {
+    logger.warn('No primitives provided to mapToolsToAnthropic');
     return;
   }
 
@@ -34,7 +38,16 @@ export function mapToolsToAnthropic(primitives: Primitive[]): void {
       },
     }));
 
-  tools.push(...filteredTools);
+  logger.info(`Found ${filteredTools.length} tools to register:`, filteredTools.map(t => t.name));
+
+  // Deduplicate tools based on name before adding them
+  const uniqueTools = filteredTools.filter(newTool => 
+    !tools.some(existingTool => existingTool.name === newTool.name)
+  );
+
+  logger.info(`Registering ${uniqueTools.length} unique tools:`, uniqueTools.map(t => t.name));
+  tools.push(...uniqueTools);
+  logger.info(`Total registered tools: ${tools.length}`, tools.map(t => t.name));
 }
 
 export async function callClaude(
@@ -43,6 +56,15 @@ export async function callClaude(
   onStream?: (text: string) => void,
   resetMessages?: boolean
 ): Promise<Message> {
+  // Ensure tools are initialized
+  if (!toolsInitialized) {
+    try {
+      await ensureToolsInitialized();
+    } catch (error) {
+      logger.error('Failed to initialize tools:', error);
+    }
+  }
+
   if (resetMessages) {
     messageManager.resetQueue(userId);
   }
@@ -110,9 +132,33 @@ export async function processResponse(
 
 async function callTool(toolBlock: ToolUseBlock): Promise<MessageParam> {
   const { name, id, input } = toolBlock;
+
+  // Check if the tool exists in our registered tools
   const tool = tools.find(tool => tool.name === name);
-  if (tool) {
+  if (!tool) {
+    logger.error(`Tool ${name} not found in registered tools. Available tools: ${tools.map(t => t.name).join(', ')}`);
+    
+    // Return a tool result with an error message instead of throwing
+    return {
+      role: 'user',
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: id,
+          content: [
+            {
+              type: 'text',
+              text: `Error: Tool '${name}' is not available. Please try using one of the available tools or contact support.`
+            }
+          ],
+        },
+      ],
+    } as MessageParam;
+  }
+  
+  try {
     const toolOutput = await runTool(name, input as Record<string, any>);
+    
     return {
       role: 'user',
       content: [
@@ -123,7 +169,43 @@ async function callTool(toolBlock: ToolUseBlock): Promise<MessageParam> {
         },
       ],
     } as MessageParam;
-  } else {
-    throw Error(`Tool ${name} does not exist`);
+  } catch (error: any) {
+    logger.error(`Error executing tool ${name}:`, error);
+    
+    // Return a tool result with the error message
+    return {
+      role: 'user',
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: id,
+          content: [
+            {
+              type: 'text',
+              text: `Error executing tool '${name}': ${error?.message || 'Unknown error'}`
+            }
+          ],
+        },
+      ],
+    } as MessageParam;
+  }
+}
+
+// Ensure all tools are properly initialized
+async function ensureToolsInitialized(): Promise<void> {
+  if (toolsInitialized) return;
+  
+  try {
+    // Initialize tools
+    await initConfluenceTools();
+    await initSumologicTools();
+    
+    // Add other tool initializations here as needed
+    
+    toolsInitialized = true;
+    logger.info('All tools initialized successfully. Available tools:', tools.map(t => t.name));
+  } catch (error) {
+    logger.error('Error initializing tools:', error);
+    throw error;
   }
 }

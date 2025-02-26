@@ -7,18 +7,13 @@ import { app } from '@/app';
 import { createSearchMessageBlocks } from './utils';
 import { MessageUpdater } from './MessageUpdater';
 
-export interface ConfluenceConfig {
-  url: string;
-  username: string;
-  token: string;
-}
-
 export const actionHandler = async ({
   body,
   ack,
   respond,
 }: SlackActionMiddlewareArgs<BlockButtonAction>): Promise<void> => {
   await ack();
+  logger.info('Received action:', { actions: body.actions });
   if (body.actions[0].action_id === 'confluence_search') {
     try {
       const query = body.actions[0].value;
