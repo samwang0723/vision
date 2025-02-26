@@ -20,6 +20,12 @@ interface JiraConfig {
   apiUser: string;
 }
 
+interface SumologicConfig {
+  endpoint: string;
+  accessId: string;
+  accessKey: string;
+}
+
 interface AnthropicConfig {
   apiKey: string;
 }
@@ -34,6 +40,7 @@ interface Config {
   jira: JiraConfig;
   anthropic: AnthropicConfig;
   logging: LoggingConfig;
+  sumologic: SumologicConfig;
 }
 
 const config: Config = {
@@ -54,6 +61,11 @@ const config: Config = {
   },
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY || '',
+  },
+  sumologic: {
+    endpoint: process.env.SUMOLOGIC_ENDPOINT || '',
+    accessId: process.env.SUMOLOGIC_ACCESS_ID || '',
+    accessKey: process.env.SUMOLOGIC_ACCESS_KEY || '',
   },
   logging: {
     level: process.env.LOG_LEVEL || 'info',

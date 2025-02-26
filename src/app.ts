@@ -5,7 +5,7 @@ import { analysisHandler } from '@/domains/slack/analysis';
 import { actionHandler } from '@/domains/slack/action';
 import { messageHandler } from '@/domains/slack/message';
 import { initConfluenceTools } from './domains/atlassian/command';
-
+import { initSumologicTools } from './domains/sumologic/command';
 // Initializes your app in socket mode with your app token and signing secret
 export const app = new App({
   token: config.slack.botToken,
@@ -27,6 +27,7 @@ app.action<BlockButtonAction>(/.*/, actionHandler);
 (async (): Promise<void> => {
   try {
     await initConfluenceTools();
+    await initSumologicTools();
     await app.start();
     logger.info('⚡️ Bolt app is running!');
   } catch (error) {
