@@ -7,7 +7,6 @@ import { ToolUseBlock } from '@anthropic-ai/sdk/resources/messages/messages';
 import { MessageParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { runTool } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
-import logger from '@/utils/logger';
 import { MessageQueueManager } from './messageQueue';
 
 const messageManager = new MessageQueueManager();
@@ -46,8 +45,6 @@ export async function callClaude(
   if (resetMessages) {
     messageManager.resetQueue(userId);
   }
-  logger.info('messages', { prompt, userId });
-
   if (Array.isArray(prompt)) {
     messageManager.addMessages(userId, prompt);
   } else {
@@ -58,8 +55,6 @@ export async function callClaude(
   }
 
   const messages = messageManager.getQueue(userId, 6);
-  logger.info('messages', { messages });
-  logger.info('--------------------------------');
   const stream = anthropic.messages
     .stream({
       model: 'claude-3-5-sonnet-latest',
@@ -77,8 +72,6 @@ export async function callClaude(
     role: 'assistant',
     content: message.content,
   });
-  logger.info('message', messageManager.getQueue(userId, 6));
-  logger.info('===============================');
 
   return message;
 }

@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import logger from '@/utils/logger';
-import { ConfluenceConfig } from '@domains/slack/action';
 import { runWithCommand } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
 import config from '@/config';
@@ -8,11 +7,7 @@ import { mapToolsToAnthropic } from '../anthropic/service';
 
 export async function initConfluenceTools(): Promise<void> {
   try {
-    const primitives = await startConfluenceMcpServer({
-      url: config.confluence.baseUrl,
-      username: config.confluence.apiUser,
-      token: config.confluence.apiKey,
-    });
+    const primitives = await startServer();
     mapToolsToAnthropic(primitives);
     logger.info('Confluence tools initialized successfully');
   } catch (error) {
@@ -21,16 +16,17 @@ export async function initConfluenceTools(): Promise<void> {
   }
 }
 
-async function startConfluenceMcpServer(
-  confluenceConfig: ConfluenceConfig
-): Promise<Primitive[]> {
+async function startServer(): Promise<Primitive[]> {
   try {
     const command = 'uvx';
     const args = [
       'mcp-atlassian',
-      `--confluence-url=${confluenceConfig.url}`,
-      `--confluence-username=${confluenceConfig.username}`,
-      `--confluence-token=${confluenceConfig.token}`,
+      `--confluence-url=${config.confluence.baseUrl}`,
+      `--confluence-username=${config.confluence.apiUser}`,
+      `--confluence-token=${config.confluence.apiKey}`,
+      `--jira-url=${config.jira.baseUrl}`,
+      `--jira-username=${config.jira.apiUser}`,
+      `--jira-token=${config.jira.apiKey}`,
     ];
 
     return await runWithCommand(command, args);

@@ -22,7 +22,7 @@ app.command('/analysis', analysisHandler);
 app.message(messageHandler);
 
 // Handle button clicks
-app.action<BlockButtonAction>('confluence_search', actionHandler);
+app.action<BlockButtonAction>(/.*/, actionHandler);
 
 (async (): Promise<void> => {
   try {

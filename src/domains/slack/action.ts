@@ -7,24 +7,19 @@ import { app } from '@/app';
 import { createSearchMessageBlocks } from './utils';
 import { MessageUpdater } from './MessageUpdater';
 
-export interface ConfluenceConfig {
-  url: string;
-  username: string;
-  token: string;
-}
-
 export const actionHandler = async ({
   body,
   ack,
   respond,
 }: SlackActionMiddlewareArgs<BlockButtonAction>): Promise<void> => {
   await ack();
-  if (body.actions[0].action_id === 'confluence_search') {
     try {
       const query = body.actions[0].value;
       if (!query) {
         throw new Error('Search query is required');
       }
+
+      logger.info('Received search query:', query);
 
       // Send initial message
       const initialResponse = await app.client.chat.postMessage({
@@ -47,8 +42,12 @@ export const actionHandler = async ({
       );
 
       // Process search
+      let updated_query = query;
+      if (body.actions[0].action_id === 'confluence_search') {
+        updated_query = `Please search on confluence under space=TMAB using cql for the following query: ${query}`;
+      }
       const response = await callClaude(
-        `Please search on confluence under space=TMAB using cql for the following query: ${query}`,
+        updated_query,
         body.user.id,
         text => messageUpdater.update(text)
       ).then(response =>
@@ -80,5 +79,4 @@ export const actionHandler = async ({
         }`
       );
     }
-  }
 };
