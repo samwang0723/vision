@@ -33,7 +33,12 @@ export function mapToolsToAnthropic(primitives: Primitive[]): void {
       },
     }));
 
-  tools.push(...filteredTools);
+  // Deduplicate tools based on name before adding them
+  const uniqueTools = filteredTools.filter(newTool => 
+    !tools.some(existingTool => existingTool.name === newTool.name)
+  );
+
+  tools.push(...uniqueTools);
 }
 
 export async function callClaude(

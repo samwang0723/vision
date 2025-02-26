@@ -41,10 +41,14 @@ export const actionHandler = async ({
         query
       );
 
-      // Process search
+      // Process search with predefined rules
       let updated_query = query;
       if (body.actions[0].action_id === 'confluence_search') {
         updated_query = `Please search on confluence under space=TMAB using cql for the following query: ${query}`;
+      } else if (body.actions[0].action_id === 'search-sumologic') {
+        updated_query = `Please make sure timestamp following format: 2025-02-26T00:00:00Z,
+        and [FILTERED] is just PII mask, do not consider that string as an actual error reason,
+        and search on sumologic for the following query: ${query}`;
       }
       const response = await callClaude(
         updated_query,
