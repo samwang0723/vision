@@ -14,12 +14,6 @@ interface ConfluenceConfig {
   apiUser: string;
 }
 
-interface JiraConfig {
-  apiKey: string;
-  baseUrl: string;
-  apiUser: string;
-}
-
 interface SumologicConfig {
   endpoint: string;
   accessId: string;
@@ -37,7 +31,6 @@ interface LoggingConfig {
 interface Config {
   slack: SlackConfig;
   confluence: ConfluenceConfig;
-  jira: JiraConfig;
   anthropic: AnthropicConfig;
   logging: LoggingConfig;
   sumologic: SumologicConfig;
@@ -53,11 +46,6 @@ const config: Config = {
     apiKey: process.env.CONFLUENCE_API_KEY || '',
     baseUrl: process.env.CONFLUENCE_BASE_URL || '',
     apiUser: process.env.CONFLUENCE_API_USER || '',
-  },
-  jira: {
-    apiKey: process.env.JIRA_API_KEY || '',
-    baseUrl: process.env.JIRA_BASE_URL || '',
-    apiUser: process.env.JIRA_API_USER || '',
   },
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY || '',

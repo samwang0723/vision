@@ -18,15 +18,15 @@ export async function initConfluenceTools(): Promise<void> {
 
 async function startServer(): Promise<Primitive[]> {
   try {
-    const command = 'uvx';
+    const command = 'docker';
     const args = [
-      'mcp-atlassian',
-      `--confluence-url=${config.confluence.baseUrl}`,
-      `--confluence-username=${config.confluence.apiUser}`,
-      `--confluence-token=${config.confluence.apiKey}`,
-      `--jira-url=${config.jira.baseUrl}`,
-      `--jira-username=${config.jira.apiUser}`,
-      `--jira-token=${config.jira.apiKey}`,
+      'run',
+      '--rm',
+      '-i',
+      `-e ATLASSIAN_HOST=${config.confluence.baseUrl}`,
+      `-e ATLASSIAN_EMAIL=${config.confluence.apiUser}`,
+      `-e ATLASSIAN_API_TOKEN=${config.confluence.apiKey}`,
+      `mcp/atlassian`,
     ];
 
     return await runWithCommand(command, args, 'atlassian');
