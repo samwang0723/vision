@@ -4,8 +4,9 @@ import logger from '@utils/logger';
 import { analysisHandler } from '@/domains/slack/analysis';
 import { actionHandler } from '@/domains/slack/action';
 import { messageHandler } from '@/domains/slack/message';
-import { initConfluenceTools } from './domains/atlassian/command';
-import { initSumologicTools } from './domains/sumologic/command';
+import { initSumologicTools } from './tools/sumologic/command';
+import { initConfluenceTools } from './tools/atlassian/command';
+
 // Initializes your app in socket mode with your app token and signing secret
 export const app = new App({
   token: config.slack.botToken,

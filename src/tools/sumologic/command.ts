@@ -2,7 +2,7 @@ import logger from '@/utils/logger';
 import { runWithCommand } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
 import config from '@/config';
-import { mapToolsToAnthropic } from '../anthropic/service';
+import { mapToolsToAnthropic } from '@/domains/anthropic/service';
 
 export async function initSumologicTools(): Promise<void> {
   try {

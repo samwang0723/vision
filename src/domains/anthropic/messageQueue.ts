@@ -1,6 +1,5 @@
 import type { Message } from '@anthropic-ai/sdk/resources/messages';
 import { MessageParam } from '@anthropic-ai/sdk/resources/messages/messages';
-import { anthropic } from './service';
 import logger from '@/utils/logger';
 
 // Maximum token limit for Claude 3.5 Sonnet
