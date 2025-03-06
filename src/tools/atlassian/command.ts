@@ -2,7 +2,6 @@
 import logger from '@/utils/logger';
 import { runWithCommand } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
-import config from '@/config';
 import { mapToolsToAnthropic } from '@/domains/anthropic/service';
 
 export async function initConfluenceTools(): Promise<void> {
@@ -19,15 +18,7 @@ export async function initConfluenceTools(): Promise<void> {
 async function startServer(): Promise<Primitive[]> {
   try {
     const command = 'docker';
-    const args = [
-      'run',
-      '--rm',
-      '-i',
-      `-e ATLASSIAN_HOST=${config.confluence.baseUrl}`,
-      `-e ATLASSIAN_EMAIL=${config.confluence.apiUser}`,
-      `-e ATLASSIAN_API_TOKEN=${config.confluence.apiKey}`,
-      `mcp/atlassian`,
-    ];
+    const args = ['run', '--rm', '-i', 'mcp/atlassian'];
 
     return await runWithCommand(command, args, 'atlassian');
   } catch (error) {

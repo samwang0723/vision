@@ -1,7 +1,6 @@
 import logger from '@/utils/logger';
 import { runWithCommand } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
-import config from '@/config';
 import { mapToolsToAnthropic } from '@/domains/anthropic/service';
 
 export async function initSumologicTools(): Promise<void> {
@@ -18,15 +17,7 @@ export async function initSumologicTools(): Promise<void> {
 async function startServer(): Promise<Primitive[]> {
   try {
     const command = 'docker';
-    const args = [
-      'run',
-      '--rm',
-      '-i',
-      `-e ENDPOINT=${config.sumologic.endpoint}`,
-      `-e SUMO_API_ID=${config.sumologic.accessId}`,
-      `-e SUMO_API_KEY=${config.sumologic.accessKey}`,
-      'mcp/sumologic',
-    ];
+    const args = ['run', '--rm', '-i', 'mcp/sumologic'];
 
     return await runWithCommand(command, args, 'sumologic');
   } catch (error) {
