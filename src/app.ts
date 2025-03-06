@@ -6,7 +6,7 @@ import { actionHandler } from '@/domains/slack/action';
 import { messageHandler } from '@/domains/slack/message';
 import { initSumologicTools } from './tools/sumologic/command';
 import { initConfluenceTools } from './tools/atlassian/command';
-
+import { initMemoryTools } from './tools/memory/command';
 // Initializes your app in socket mode with your app token and signing secret
 export const app = new App({
   token: config.slack.botToken,
@@ -28,7 +28,11 @@ app.action<BlockButtonAction>(/.*/, actionHandler);
 (async (): Promise<void> => {
   try {
     // Run initialization functions concurrently
-    await Promise.all([initConfluenceTools(), initSumologicTools()]);
+    await Promise.all([
+      initConfluenceTools(),
+      initSumologicTools(),
+      initMemoryTools(),
+    ]);
 
     // Start the Slack app after tools are initialized
     await app.start();
