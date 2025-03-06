@@ -23,26 +23,36 @@ export const createSearchMessageBlocks = ({
   text,
   query,
   isSearching = false,
-}: SearchMessageBlocks): SearchMessageResult => ({
-  blocks: [
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: isSearching
-          ? '*Searching ...*'
-          : `*Search Results:*\n${text}`,
-      },
-    },
-    {
-      type: 'context',
-      elements: [
-        {
+}: SearchMessageBlocks): SearchMessageResult => {
+  // Truncate text to stay within Slack's 3000 character limit
+  const MAX_TEXT_LENGTH = 2900; // Leaving some buffer
+  const truncatedText =
+    text.length > MAX_TEXT_LENGTH
+      ? text.substring(0, MAX_TEXT_LENGTH) +
+        '... (truncated due to Slack message size limits)'
+      : text;
+
+  return {
+    blocks: [
+      {
+        type: 'section',
+        text: {
           type: 'mrkdwn',
-          text: `🔍 Search query: "${query}"`,
+          text: isSearching
+            ? '*Searching ...*'
+            : `*Search Results:*\n${truncatedText}`,
         },
-      ],
-    },
-  ],
-  text: isSearching ? 'Searching ...' : text,
-});
+      },
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `🔍 Search query: "${query}"`,
+          },
+        ],
+      },
+    ],
+    text: isSearching ? 'Searching ...' : truncatedText,
+  };
+};

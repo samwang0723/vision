@@ -56,7 +56,7 @@ export async function callClaude(
       });
     }
 
-    const messages = messageManager.getQueue(userId, 4);
+    const messages = messageManager.getQueue(userId, 6);
     const tokenCount = messageManager.getTokenCount(userId);
 
     logger.info(
