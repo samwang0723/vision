@@ -17,7 +17,14 @@ export async function initMemoryTools(): Promise<void> {
 async function startServer(): Promise<Primitive[]> {
   try {
     const command = 'docker';
-    const args = ['run', '--rm', '-i', 'mcp/memory'];
+    const args = [
+      'run',
+      '--rm',
+      '-i',
+      '--network=mcp-memory_default',
+      '-e REDIS_URL=redis://redis:6379',
+      'mcp/memory',
+    ];
 
     return await runWithCommand(command, args, 'memory');
   } catch (error) {
