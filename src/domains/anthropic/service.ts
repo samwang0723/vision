@@ -13,6 +13,11 @@ import logger from '@/utils/logger';
 const messageManager = new MessageQueueManager();
 const tools: Tool[] = [];
 
+const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant with access to various tools and services. Please follow these important guidelines when using specific tools:
+- While searching restaurants, please perform as professional personal assistant to evaluate the condition I provided, do not ask too many questions for me to choose, pick the best suitable selection for me, checking the reservation options and guide how to do the reservation.
+  also list down the Signature Dishes from that restaurant and Approximately pricing per person. When booking info has booking url using external url, use the mcp browse tool to work and find reservation steps.do not feedback each of the steps, if online booking url is provided,
+  directly booking for me, only asking me if there's credit card information required`;
+
 export const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
 });
@@ -41,7 +46,8 @@ export async function callClaude(
   prompt: string | MessageParam[],
   userId: string,
   onStream?: (text: string) => void,
-  resetMessages?: boolean
+  resetMessages?: boolean,
+  systemPrompt?: string
 ): Promise<Message> {
   try {
     if (resetMessages) {
@@ -63,17 +69,25 @@ export async function callClaude(
       `Calling Claude for user ${userId} with ${tokenCount} tokens in context`
     );
 
-    const stream = anthropic.messages
-      .stream({
-        model: 'claude-3-5-sonnet-latest',
-        temperature: 0.3,
-        max_tokens: 2048,
-        messages: messages,
-        tools: tools,
-      })
-      .on('text', text => {
-        onStream?.(text);
-      });
+    const streamOptions: any = {
+      model: 'claude-sonnet-4-20250514',
+      temperature: 0.5,
+      max_tokens: 10000,
+      messages: messages,
+      tools: tools,
+    };
+
+    // Add system prompt if provided
+    if (systemPrompt) {
+      streamOptions.system = systemPrompt;
+    } else {
+      // Use default system prompt if none provided
+      streamOptions.system = DEFAULT_SYSTEM_PROMPT;
+    }
+
+    const stream = anthropic.messages.stream(streamOptions).on('text', text => {
+      onStream?.(text);
+    });
 
     const message = await stream.finalMessage();
     messageManager.addMessage(userId, {
@@ -113,7 +127,9 @@ export async function callClaude(
           return callClaude(
             'I apologize, but I had to clear our conversation history due to length constraints. Could you please restate your most recent question?',
             userId,
-            onStream
+            onStream,
+            undefined,
+            systemPrompt
           );
         }
       }
@@ -127,7 +143,7 @@ export async function callClaude(
             text: 'I apologize, but our conversation has become too long for me to process. Could you please start a new conversation or ask your question again in a more concise way?',
           },
         ],
-        model: 'claude-3-5-sonnet-latest',
+        model: 'claude-sonnet-4-20250514',
         role: 'assistant',
         stop_reason: 'end_turn',
         stop_sequence: null,
@@ -145,7 +161,7 @@ export async function callClaude(
           text: `I'm sorry, I encountered an error: ${error.message}. Please try again.`,
         },
       ],
-      model: 'claude-3-5-sonnet-latest',
+      model: 'claude-sonnet-4-20250514',
       role: 'assistant',
       stop_reason: 'end_turn',
       stop_sequence: null,
@@ -158,7 +174,8 @@ export async function callClaude(
 export async function processResponse(
   response: Message,
   userId: string,
-  onStream?: (text: string) => void
+  onStream?: (text: string) => void,
+  systemPrompt?: string
 ): Promise<Message | void> {
   const toolUseBlocks = response.content.filter(
     (content: any): content is ToolUseBlock => content.type === 'tool_use'
@@ -172,8 +189,14 @@ export async function processResponse(
     );
     const allToolResults = await Promise.all(allToolResultPromises);
 
-    return await callClaude(allToolResults, userId, onStream).then(response =>
-      processResponse(response, userId, onStream)
+    return await callClaude(
+      allToolResults,
+      userId,
+      onStream,
+      undefined,
+      systemPrompt
+    ).then(response =>
+      processResponse(response, userId, onStream, systemPrompt)
     );
   }
 

@@ -7,6 +7,9 @@ import { messageHandler } from '@/domains/slack/message';
 import { initSumologicTools } from './tools/sumologic/command';
 import { initConfluenceTools } from './tools/atlassian/command';
 import { initMemoryTools } from './tools/memory/command';
+import { initPlaywrightTools } from './tools/playwright/command';
+import { initBookingTools } from './tools/booking/command';
+
 // Initializes your app in socket mode with your app token and signing secret
 export const app = new App({
   token: config.slack.botToken,
@@ -32,6 +35,8 @@ app.action<BlockButtonAction>(/.*/, actionHandler);
       initConfluenceTools(),
       initSumologicTools(),
       initMemoryTools(),
+      initBookingTools(),
+      initPlaywrightTools(),
     ]);
 
     // Start the Slack app after tools are initialized
