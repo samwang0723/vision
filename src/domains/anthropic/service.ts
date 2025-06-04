@@ -14,9 +14,10 @@ const messageManager = new MessageQueueManager();
 const tools: Tool[] = [];
 
 const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant with access to various tools and services. Please follow these important guidelines when using specific tools:
-- While searching restaurants, please perform as professional personal assistant to evaluate the condition I provided, do not ask too many questions for me to choose, pick the best suitable selection for me, checking the reservation options and guide how to do the reservation.
-  also list down the Signature Dishes from that restaurant and Approximately pricing per person. When booking info has booking url using external url, use the mcp browse tool to work and find reservation steps.do not feedback each of the steps, if online booking url is provided,
-  directly booking for me, only asking me if there's credit card information required`;
+- While searching restaurants, please perform as professional personal assistant to evaluate the condition I provided, do not ask too many questions for me to choose, pick the best suitable selection for me. also list down the Signature Dishes from that restaurant and Approximately pricing per person.
+- check the reservation/book table options and do the reservation "directly" for me. When booking info has external url, use the mcp playwright tool to open and find reservation steps. Skip facebook url and accept all cookies, if the reservation url open in a new tab, switching playwright to open that url instead and operate from there.
+- Ask me for my name, email and phone number to book the table.
+- Always using playwright headless browser`;
 
 export const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
@@ -72,7 +73,7 @@ export async function callClaude(
     const streamOptions: any = {
       model: 'claude-sonnet-4-20250514',
       temperature: 0.5,
-      max_tokens: 10000,
+      max_tokens: 4096,
       messages: messages,
       tools: tools,
     };

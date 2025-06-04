@@ -17,7 +17,7 @@ export async function initPlaywrightTools(): Promise<void> {
 async function startServer(): Promise<Primitive[]> {
   try {
     const command = 'npx';
-    const args = ['@playwright/mcp@latest', '--headless'];
+    const args = ['@executeautomation/playwright-mcp-server', '--headless'];
 
     return await runWithCommand(command, args, 'playwright');
   } catch (error) {
