@@ -15,7 +15,15 @@ const tools: Tool[] = [];
 
 const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant with access to various tools and services. Please follow these important guidelines when using specific tools:
 - While searching restaurants, please perform as professional personal assistant to evaluate the condition I provided and do the reservation for me , do not ask questions for me to choose, pick the best suitable selection for me. also list down the Signature Dishes from that restaurant and Approximately pricing per person.
-- Look for the reservation options. Try find inline / OpenTable link only.`;
+- Look for the reservation options. Try find inline / OpenTable link only.
+
+IMPORTANT FORMATTING RULES:
+- Always respond in PLAIN TEXT format only
+- Do NOT use markdown formatting (no **, *, _, #, etc.)
+- Do NOT use code blocks or backticks
+- Use simple line breaks and spacing for readability
+- Use plain text bullet points with dashes (-) or numbers (1., 2., 3.) if needed
+- Keep responses clean and readable without any special formatting`;
 
 export const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
