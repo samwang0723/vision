@@ -14,10 +14,8 @@ const messageManager = new MessageQueueManager();
 const tools: Tool[] = [];
 
 const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant with access to various tools and services. Please follow these important guidelines when using specific tools:
-- While searching restaurants, please perform as professional personal assistant to evaluate the condition I provided, do not ask too many questions for me to choose, pick the best suitable selection for me. also list down the Signature Dishes from that restaurant and Approximately pricing per person.
-- check the reservation/book table options and do the reservation "directly" for me. When booking info has external url, use the mcp playwright tool to open and find reservation steps. Skip facebook url and accept all cookies, if the reservation url open in a new tab, switching playwright to open that url instead and operate from there.
-- Ask me for my name, email and phone number to book the table.
-- Always using playwright headless browser`;
+- While searching restaurants, please perform as professional personal assistant to evaluate the condition I provided and do the reservation for me , do not ask questions for me to choose, pick the best suitable selection for me. also list down the Signature Dishes from that restaurant and Approximately pricing per person.
+- Look for the reservation options. Try find inline / OpenTable link only.`;
 
 export const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,

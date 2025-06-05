@@ -1,10 +1,9 @@
 import winston from 'winston';
-import { LogLevel } from '@slack/bolt';
 import config from '@config/index';
 
 interface CustomLogger extends winston.Logger {
-  getLevel(): LogLevel;
-  setLevel(level: LogLevel): void;
+  getLevel(): string;
+  setLevel(level: string): void;
   setName(name: string): void;
 }
 
@@ -42,8 +41,8 @@ const logger: CustomLogger = winston.createLogger({
 }) as CustomLogger;
 
 // Add getLevel and setLevel methods to make it compatible with Slack Bolt
-logger.getLevel = (): LogLevel => logger.level as LogLevel;
-logger.setLevel = (level: LogLevel): void => {
+logger.getLevel = (): string => logger.level as string;
+logger.setLevel = (level: string): void => {
   logger.level = level;
   logger.transports.forEach(transport => {
     transport.level = level;
