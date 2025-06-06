@@ -85,11 +85,9 @@ const userLocations = new Map<
       logger.info(`Received message from user ID: ${ctx.from.id}`);
       logger.info(`Received message: ${ctx.message.text}`);
 
-      // ctx.reply('Echo: ' + ctx.message.text);
-      // return;
-
       const updateInterval = 500; // Update every 500ms to avoid rate limits
       let messageCounter = 0;
+      let lastProcessingMessage: any = null;
 
       try {
         // Get user's location if available and include it in the message context
@@ -107,15 +105,38 @@ const userLocations = new Map<
           onNewClaude: async () => {
             messageCounter++;
 
-            // Create a new message for each Claude call
-            const initialText =
+            let newMessage: any;
+
+            if (messageCounter === 1) {
+              // First call - create initial "Thinking..." message
+              const initialText = '🤔 Thinking...';
+              newMessage = await ctx.reply(initialText);
+            } else {
+              // Subsequent calls - delete previous processing message if it exists
+              if (lastProcessingMessage) {
+                try {
+                  await bot.api.deleteMessage(
+                    ctx.chat.id,
+                    lastProcessingMessage.message_id
+                  );
+                } catch (err: any) {
+                  logger.error(
+                    'Failed to delete previous processing message:',
+                    err
+                  );
+                }
+              }
+
+              // Create new processing message
+              const processingText = `🔧 Processing step ${messageCounter} ...`;
+              newMessage = await ctx.reply(processingText);
+              lastProcessingMessage = newMessage;
+            }
+
+            let messageLastSent =
               messageCounter === 1
                 ? '🤔 Thinking...'
-                : `🔧 Processing (${messageCounter})... Please wait for a while.`;
-
-            const newMessage = await ctx.reply(initialText);
-
-            let messageLastSent = initialText;
+                : `🔧 Processing step ${messageCounter} ...`;
             let messageStreamedText = '';
             let lastUpdateTime = 0;
 

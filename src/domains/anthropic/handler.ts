@@ -65,6 +65,10 @@ async function processResponseWithNewMessages(
     logger.warn(
       `Maximum recursion depth (${MAX_DEPTH}) reached, stopping tool processing`
     );
+    const messageController = await onNewClaude();
+    messageController.flushMessages(
+      'Maximum recursion depth reached, stopping tool processing'
+    );
     return;
   }
   const toolUseBlocks = response.content.filter(
