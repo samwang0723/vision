@@ -59,7 +59,7 @@ async function processResponseWithNewMessages(
   }>,
   depth: number = 0
 ): Promise<void> {
-  const MAX_DEPTH = 5; // Prevent infinite loops
+  const MAX_DEPTH = 10; // Prevent infinite loops
 
   if (depth > MAX_DEPTH) {
     logger.warn(
@@ -74,6 +74,8 @@ async function processResponseWithNewMessages(
   logger.info(`Processing ${toolUseBlocks.length} tools at depth ${depth}`);
 
   if (toolUseBlocks.length) {
+    logger.info('Tool selected:', toolUseBlocks[0]);
+
     // Create tool results
     const allToolResultPromises = toolUseBlocks.map(
       async (toolBlock: ToolUseBlock) => {

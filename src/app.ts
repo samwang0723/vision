@@ -3,11 +3,18 @@ import logger from '@utils/logger';
 import { initMemoryTools } from './tools/memory/command';
 import { initPlaywrightTools } from './tools/playwright/command';
 import { initBookingTools } from './tools/booking/command';
-import { Bot } from 'grammy';
+import { Bot, Keyboard } from 'grammy';
 import { messageHandler } from './domains/anthropic/handler';
 import { initTimeTools } from './tools/time/command';
+import { formatLocation } from '@utils/location';
 
 const bot = new Bot(config.telegram.botToken);
+
+// Store user locations (in production, use a database)
+const userLocations = new Map<
+  string,
+  { latitude: number; longitude: number; address?: string }
+>();
 
 (async (): Promise<void> => {
   try {
@@ -19,8 +26,62 @@ const bot = new Bot(config.telegram.botToken);
       // initPlaywrightTools(),
     ]);
 
+    // Handle location sharing
+    bot.on('message:location', async ctx => {
+      if (!ctx.from) return;
+
+      const location = ctx.message.location;
+      const userId = ctx.from.id.toString();
+
+      // Store the user's location
+      userLocations.set(userId, {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+
+      logger.info(
+        `Received location from user ${userId}: ${location.latitude}, ${location.longitude}`
+      );
+
+      await ctx.reply(
+        `📍 Location received! Latitude: ${location.latitude}, Longitude: ${location.longitude}\n\nI'll remember this location for restaurant searches and other location-based services.`
+      );
+    });
+
+    // Command to request location
+    bot.command('location', async ctx => {
+      const keyboard = new Keyboard()
+        .requestLocation('📍 Share My Location')
+        .resized();
+
+      await ctx.reply(
+        '📍 Please share your location so I can help you find nearby restaurants and services.',
+        {
+          reply_markup: keyboard,
+        }
+      );
+    });
+
+    // Command to check stored location
+    bot.command('mylocation', async ctx => {
+      if (!ctx.from) return;
+
+      const userId = ctx.from.id.toString();
+      const location = userLocations.get(userId);
+
+      if (location) {
+        await ctx.reply(`Your stored location:\n${formatLocation(location)}`);
+      } else {
+        await ctx.reply(
+          '📍 No location stored. Use /location to share your location with me.'
+        );
+      }
+    });
+
     // Register listeners to handle messages
     bot.on('message:text', async ctx => {
+      if (!ctx.from) return;
+
       logger.info(`Received message from user ID: ${ctx.from.id}`);
       logger.info(`Received message: ${ctx.message.text}`);
 
@@ -31,8 +92,17 @@ const bot = new Bot(config.telegram.botToken);
       let messageCounter = 0;
 
       try {
+        // Get user's location if available and include it in the message context
+        const userId = ctx.from.id.toString();
+        const userLocation = userLocations.get(userId);
+
+        let messageWithLocation = ctx.message.text;
+        if (userLocation) {
+          messageWithLocation += `\n\n[User's current location: Latitude ${userLocation.latitude}, Longitude ${userLocation.longitude}]`;
+        }
+
         await messageHandler({
-          data: ctx.message.text,
+          data: messageWithLocation,
           userId: ctx.from.id.toString(),
           onNewClaude: async () => {
             messageCounter++;
@@ -41,7 +111,7 @@ const bot = new Bot(config.telegram.botToken);
             const initialText =
               messageCounter === 1
                 ? '🤔 Thinking...'
-                : `🔧 Processing step ${messageCounter}...`;
+                : `🔧 Processing (${messageCounter})... Please wait for a while.`;
 
             const newMessage = await ctx.reply(initialText);
 
@@ -124,3 +194,6 @@ const bot = new Bot(config.telegram.botToken);
     process.exit(1);
   }
 })();
+
+// Export the userLocations map so other modules can access it
+export { userLocations };
