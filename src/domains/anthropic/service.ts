@@ -31,6 +31,48 @@ function loadSystemPrompt(): string {
 
 export const DEFAULT_SYSTEM_PROMPT = loadSystemPrompt();
 
+// Create personalized system prompt with user information
+export function createPersonalizedSystemPrompt(userProfile?: {
+  full_name?: string;
+  first_name?: string;
+  username?: string;
+  language_code?: string;
+  email?: string;
+  phone?: string;
+}): string {
+  let personalizedPrompt = DEFAULT_SYSTEM_PROMPT;
+
+  if (userProfile) {
+    const userName =
+      userProfile.full_name ||
+      userProfile.first_name ||
+      userProfile.username ||
+      'there';
+    let userInfo = `\n\nUSER CONTEXT:\n- User's name: ${userName}`;
+
+    if (userProfile.language_code) {
+      userInfo += `\n- User's language preference: ${userProfile.language_code}`;
+    }
+
+    if (userProfile.email) {
+      userInfo += `\n- User's email: ${userProfile.email}`;
+    }
+
+    if (userProfile.phone) {
+      userInfo += `\n- User's phone: ${userProfile.phone}`;
+    }
+
+    personalizedPrompt += userInfo;
+    personalizedPrompt += `\n- Always address the user by their name when appropriate and maintain a friendly, personal tone.`;
+
+    if (userProfile.email || userProfile.phone) {
+      personalizedPrompt += `\n- When making restaurant reservations, use the provided contact information directly without asking the user.`;
+    }
+  }
+
+  return personalizedPrompt;
+}
+
 export const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
 });
@@ -60,7 +102,15 @@ export async function callClaude(
   userId: string,
   onStream?: (text: string) => void,
   resetMessages?: boolean,
-  systemPrompt?: string
+  systemPrompt?: string,
+  userProfile?: {
+    full_name?: string;
+    first_name?: string;
+    username?: string;
+    language_code?: string;
+    email?: string;
+    phone?: string;
+  }
 ): Promise<Message> {
   try {
     if (resetMessages) {
@@ -90,11 +140,12 @@ export async function callClaude(
       tools: tools,
     };
 
-    // Add system prompt if provided
+    // Add system prompt - prioritize custom, then personalized, then default
     if (systemPrompt) {
       streamOptions.system = systemPrompt;
+    } else if (userProfile) {
+      streamOptions.system = createPersonalizedSystemPrompt(userProfile);
     } else {
-      // Use default system prompt if none provided
       streamOptions.system = DEFAULT_SYSTEM_PROMPT;
     }
 
@@ -142,7 +193,8 @@ export async function callClaude(
             userId,
             onStream,
             undefined,
-            systemPrompt
+            systemPrompt,
+            userProfile
           );
         }
       }
@@ -191,9 +243,17 @@ export async function processResponseWithNewMessages(
     updateMessage: (text: string) => Promise<void>;
     flushMessages: (text: string) => Promise<void>;
   }>,
-  depth: number = 0
+  depth: number = 0,
+  userProfile?: {
+    full_name?: string;
+    first_name?: string;
+    username?: string;
+    language_code?: string;
+    email?: string;
+    phone?: string;
+  }
 ): Promise<void> {
-  const MAX_DEPTH = 10; // Prevent infinite loops
+  const MAX_DEPTH = 20; // Prevent infinite loops
 
   if (depth > MAX_DEPTH) {
     logger.warn(
@@ -252,7 +312,8 @@ export async function processResponseWithNewMessages(
         logger.info(text);
       },
       undefined,
-      DEFAULT_SYSTEM_PROMPT
+      DEFAULT_SYSTEM_PROMPT,
+      userProfile
     );
 
     // Show final results for this step
@@ -279,7 +340,8 @@ export async function processResponseWithNewMessages(
         followUpResponse,
         userId,
         onNewClaude,
-        depth + 1
+        depth + 1,
+        userProfile
       );
     } else {
       logger.info('No more tools to process, ending recursion');

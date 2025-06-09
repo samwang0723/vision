@@ -1,9 +1,27 @@
-import { userLocations } from '../app';
+import { userLocations, userProfiles, userContacts, userEmails } from '../app';
 
 export interface UserLocation {
   latitude: number;
   longitude: number;
   address?: string;
+}
+
+export interface UserProfile {
+  id: number;
+  is_bot: boolean;
+  first_name: string;
+  last_name: string;
+  username: string;
+  language_code: string;
+  is_premium: boolean;
+  full_name: string;
+}
+
+export interface UserContact {
+  phone_number: string;
+  first_name: string;
+  last_name?: string;
+  user_id?: number;
 }
 
 /**
@@ -14,10 +32,45 @@ export function getUserLocation(userId: string): UserLocation | undefined {
 }
 
 /**
+ * Get user's profile information
+ */
+export function getUserProfile(userId: string): UserProfile | undefined {
+  return userProfiles.get(userId);
+}
+
+/**
+ * Get user's contact information
+ */
+export function getUserContact(userId: string): UserContact | undefined {
+  return userContacts.get(userId);
+}
+
+/**
+ * Get user's email address
+ */
+export function getUserEmail(userId: string): string | undefined {
+  return userEmails.get(userId);
+}
+
+/**
  * Store user location
  */
 export function setUserLocation(userId: string, location: UserLocation): void {
   userLocations.set(userId, location);
+}
+
+/**
+ * Store user contact
+ */
+export function setUserContact(userId: string, contact: UserContact): void {
+  userContacts.set(userId, contact);
+}
+
+/**
+ * Store user email
+ */
+export function setUserEmail(userId: string, email: string): void {
+  userEmails.set(userId, email);
 }
 
 /**
@@ -28,6 +81,27 @@ export function hasUserLocation(userId: string): boolean {
 }
 
 /**
+ * Check if user has profile stored
+ */
+export function hasUserProfile(userId: string): boolean {
+  return userProfiles.has(userId);
+}
+
+/**
+ * Check if user has contact stored
+ */
+export function hasUserContact(userId: string): boolean {
+  return userContacts.has(userId);
+}
+
+/**
+ * Check if user has email stored
+ */
+export function hasUserEmail(userId: string): boolean {
+  return userEmails.has(userId);
+}
+
+/**
  * Remove user location
  */
 export function removeUserLocation(userId: string): boolean {
@@ -35,10 +109,57 @@ export function removeUserLocation(userId: string): boolean {
 }
 
 /**
+ * Remove user contact
+ */
+export function removeUserContact(userId: string): boolean {
+  return userContacts.delete(userId);
+}
+
+/**
+ * Remove user email
+ */
+export function removeUserEmail(userId: string): boolean {
+  return userEmails.delete(userId);
+}
+
+/**
  * Get all users with stored locations
  */
 export function getUsersWithLocations(): string[] {
   return Array.from(userLocations.keys());
+}
+
+/**
+ * Get all users with stored profiles
+ */
+export function getUsersWithProfiles(): string[] {
+  return Array.from(userProfiles.keys());
+}
+
+/**
+ * Get all users with stored contacts
+ */
+export function getUsersWithContacts(): string[] {
+  return Array.from(userContacts.keys());
+}
+
+/**
+ * Get all users with stored emails
+ */
+export function getUsersWithEmails(): string[] {
+  return Array.from(userEmails.keys());
+}
+
+/**
+ * Get complete user information
+ */
+export function getCompleteUserInfo(userId: string) {
+  return {
+    profile: getUserProfile(userId),
+    location: getUserLocation(userId),
+    contact: getUserContact(userId),
+    email: getUserEmail(userId),
+  };
 }
 
 /**

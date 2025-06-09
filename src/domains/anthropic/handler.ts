@@ -6,6 +6,7 @@ import logger from '@utils/logger';
 export const messageHandler = async ({
   data,
   userId,
+  userProfile,
   onNewClaude,
 }: Message): Promise<void> => {
   try {
@@ -18,11 +19,18 @@ export const messageHandler = async ({
     if (onNewClaude) {
       const messageController = await onNewClaude();
 
-      // Process with Claude
-      const response = await callClaude(data, userId, text => {
-        messageController.updateMessage(text);
-        logger.info(text);
-      });
+      // Process with Claude - include userProfile for personalized system prompt
+      const response = await callClaude(
+        data,
+        userId,
+        text => {
+          messageController.updateMessage(text);
+          logger.info(text);
+        },
+        undefined,
+        undefined,
+        userProfile
+      );
 
       // Show final results
       const textContent = response?.content
@@ -39,8 +47,14 @@ export const messageHandler = async ({
       if (toolUseBlocks.length) {
         logger.info('Tool selected:', toolUseBlocks[0]);
 
-        // Process response - this will create new messages for each subsequent callClaude
-        await processResponseWithNewMessages(response, userId, onNewClaude, 1);
+        // Process response - pass userProfile to subsequent calls
+        await processResponseWithNewMessages(
+          response,
+          userId,
+          onNewClaude,
+          1,
+          userProfile
+        );
       }
     }
   } catch (error) {
