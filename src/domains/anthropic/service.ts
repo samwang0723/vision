@@ -9,19 +9,27 @@ import { runTool } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
 import { MessageQueueManager } from './messageQueue';
 import logger from '@/utils/logger';
+import { normalizeToolContent } from '@/utils/contentNormalizer';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const messageManager = new MessageQueueManager();
 const tools: Tool[] = [];
+const model = 'claude-sonnet-4-20250514';
 
-const DEFAULT_SYSTEM_PROMPT = `You are a professional personal assistant with access to various tools and services. Please follow these important guidelines when using specific tools:
+// Load system prompt from file
+function loadSystemPrompt(): string {
+  try {
+    const promptPath = join(__dirname, '../../config/system-prompt.txt');
+    return readFileSync(promptPath, 'utf-8').trim();
+  } catch (error) {
+    logger.error('Failed to load system prompt from file:', error);
+    // Fallback to a basic prompt if file loading fails
+    return 'You are a professional personal assistant with access to various tools and services.';
+  }
+}
 
-- Use the input message locale to query booking tool.
-- Playwright user agent is "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" and use headless mode ALWAYS, try skip bot detection.
-- When user location is provided in the message context (marked with [User's current location:...]), use those coordinates for booking tool, unless user specify other location.
-- While searching restaurants, please evaluate the condition I provided and do the reservation for me, do not ask questions to choose, do not report what you find step by step, pick the best suitable selection for me. list down the Signature Dishes from that restaurant and Approximately pricing per person. Look for the reservation options. Share the link with me, including place's Google Maps Url and website url. ONLY OPEN GOOGLE MAPS URL AND FIND THE GOOGLE RESERVATION URL, OPEN RESERVATION URL IN NEW TAB, DO NOT OPEN ANY OTHER URL especially facebook/official website url.
-
-Below are the MUST HAVE rules for response format:
-- Always respond in PLAIN TEXT format only, Do NOT use markdown formatting (no **, *, _, #, etc.), Do NOT use code blocks or backticks. Use simple line breaks and spacing for readability. Use plain text bullet points with dashes (-) or numbers (1., 2., 3.) if needed. Keep responses clean and readable without any special formatting`;
+export const DEFAULT_SYSTEM_PROMPT = loadSystemPrompt();
 
 export const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
@@ -75,9 +83,9 @@ export async function callClaude(
     );
 
     const streamOptions: any = {
-      model: 'claude-sonnet-4-20250514',
-      temperature: 0.5,
-      max_tokens: 4096,
+      model: model,
+      temperature: 0.6,
+      max_tokens: 300,
       messages: messages,
       tools: tools,
     };
@@ -148,7 +156,7 @@ export async function callClaude(
             text: 'I apologize, but our conversation has become too long for me to process. Could you please start a new conversation or ask your question again in a more concise way?',
           },
         ],
-        model: 'claude-sonnet-4-20250514',
+        model: model,
         role: 'assistant',
         stop_reason: 'end_turn',
         stop_sequence: null,
@@ -166,7 +174,7 @@ export async function callClaude(
           text: `I'm sorry, I encountered an error: ${error.message}. Please try again.`,
         },
       ],
-      model: 'claude-sonnet-4-20250514',
+      model: model,
       role: 'assistant',
       stop_reason: 'end_turn',
       stop_sequence: null,
@@ -176,54 +184,105 @@ export async function callClaude(
   }
 }
 
-export async function processResponse(
-  response: Message,
+export async function processResponseWithNewMessages(
+  response: any,
   userId: string,
-  onStream?: (text: string) => void,
-  systemPrompt?: string
-): Promise<Message | void> {
+  onNewClaude: () => Promise<{
+    updateMessage: (text: string) => Promise<void>;
+    flushMessages: (text: string) => Promise<void>;
+  }>,
+  depth: number = 0
+): Promise<void> {
+  const MAX_DEPTH = 10; // Prevent infinite loops
+
+  if (depth > MAX_DEPTH) {
+    logger.warn(
+      `Maximum recursion depth (${MAX_DEPTH}) reached, stopping tool processing`
+    );
+    const messageController = await onNewClaude();
+    messageController.flushMessages(
+      'Maximum recursion depth reached, stopping tool processing'
+    );
+    return;
+  }
   const toolUseBlocks = response.content.filter(
     (content: any): content is ToolUseBlock => content.type === 'tool_use'
   );
 
+  logger.info(`Processing ${toolUseBlocks.length} tools at depth ${depth}`);
+
   if (toolUseBlocks.length) {
+    logger.info('Tool selected:', toolUseBlocks[0]);
+
+    // Create tool results
     const allToolResultPromises = toolUseBlocks.map(
       async (toolBlock: ToolUseBlock) => {
-        return await callTool(toolBlock);
+        const { name, id, input } = toolBlock;
+
+        const toolOutput = await runTool(name, input as Record<string, any>);
+        // logger.info('>>> Tool output:', toolOutput.content);
+
+        // Handle tool output content - check if it contains images and normalize structure
+        const normalizedContent = normalizeToolContent(toolOutput.content);
+
+        return {
+          role: 'user' as const,
+          content: [
+            {
+              type: 'tool_result' as const,
+              tool_use_id: id,
+              content: normalizedContent,
+            },
+          ],
+        };
       }
     );
+
     const allToolResults = await Promise.all(allToolResultPromises);
 
-    return await callClaude(
+    // Create new message for the next callClaude
+    const messageController = await onNewClaude();
+
+    // Call Claude again with tool results
+    const followUpResponse = await callClaude(
       allToolResults,
       userId,
-      onStream,
+      text => {
+        messageController.updateMessage(text);
+        logger.info(text);
+      },
       undefined,
-      systemPrompt
-    ).then(response =>
-      processResponse(response, userId, onStream, systemPrompt)
+      DEFAULT_SYSTEM_PROMPT
     );
-  }
 
-  return response;
-}
+    // Show final results for this step
+    const textContent = followUpResponse?.content
+      .filter(content => content.type === 'text')
+      .map(content => content.text)
+      .join('\n');
 
-async function callTool(toolBlock: ToolUseBlock): Promise<MessageParam> {
-  const { name, id, input } = toolBlock;
-  const tool = tools.find(tool => tool.name === name);
-  if (tool) {
-    const toolOutput = await runTool(name, input as Record<string, any>);
-    return {
-      role: 'user',
-      content: [
-        {
-          type: 'tool_result',
-          tool_use_id: id,
-          content: toolOutput.content,
-        },
-      ],
-    } as MessageParam;
-  } else {
-    throw Error(`Tool ${name} does not exist`);
+    if (textContent.trim()) {
+      await messageController.flushMessages(textContent);
+    }
+
+    // Check if there are more tools to process
+    const moreToolUseBlocks = followUpResponse.content.filter(
+      (content: any): content is ToolUseBlock => content.type === 'tool_use'
+    );
+
+    if (moreToolUseBlocks.length) {
+      logger.info(
+        `Found ${moreToolUseBlocks.length} more tools, continuing recursion`
+      );
+      // Recursively process more tools (each will create new messages)
+      await processResponseWithNewMessages(
+        followUpResponse,
+        userId,
+        onNewClaude,
+        depth + 1
+      );
+    } else {
+      logger.info('No more tools to process, ending recursion');
+    }
   }
 }
