@@ -9,15 +9,69 @@ import { runTool } from '@domains/mcp/mcp';
 import { Primitive } from '@domains/mcp/types';
 import { MessageQueueManager } from './messageQueue';
 import logger from '@/utils/logger';
+import { normalizeToolContent } from '@/utils/contentNormalizer';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const messageManager = new MessageQueueManager();
 const tools: Tool[] = [];
+const model = 'claude-sonnet-4-20250514';
 
-const DEFAULT_SYSTEM_PROMPT = `You are an AI assistant with access to various tools and services. Please follow these important guidelines when using specific tools:
-- While searching restaurants, please perform as professional personal assistant to evaluate the condition I provided, do not ask too many questions for me to choose, pick the best suitable selection for me. also list down the Signature Dishes from that restaurant and Approximately pricing per person.
-- check the reservation/book table options and do the reservation "directly" for me. When booking info has external url, use the mcp playwright tool to open and find reservation steps. Skip facebook url and accept all cookies, if the reservation url open in a new tab, switching playwright to open that url instead and operate from there.
-- Ask me for my name, email and phone number to book the table.
-- Always using playwright headless browser`;
+// Load system prompt from file
+function loadSystemPrompt(): string {
+  try {
+    const promptPath = join(__dirname, '../../config/system-prompt.txt');
+    return readFileSync(promptPath, 'utf-8').trim();
+  } catch (error) {
+    logger.error('Failed to load system prompt from file:', error);
+    // Fallback to a basic prompt if file loading fails
+    return 'You are a professional personal assistant with access to various tools and services.';
+  }
+}
+
+export const DEFAULT_SYSTEM_PROMPT = loadSystemPrompt();
+
+// Create personalized system prompt with user information
+export function createPersonalizedSystemPrompt(userProfile?: {
+  full_name?: string;
+  first_name?: string;
+  username?: string;
+  language_code?: string;
+  email?: string;
+  phone?: string;
+}): string {
+  let personalizedPrompt = DEFAULT_SYSTEM_PROMPT;
+
+  if (userProfile) {
+    const userName =
+      userProfile.full_name ||
+      userProfile.first_name ||
+      userProfile.username ||
+      'there';
+    let userInfo = `\n\nUSER CONTEXT:\n- User's name: ${userName}`;
+
+    if (userProfile.language_code) {
+      userInfo += `\n- User's language preference: ${userProfile.language_code}`;
+    }
+
+    if (userProfile.email) {
+      userInfo += `\n- User's email: ${userProfile.email}`;
+    }
+
+    if (userProfile.phone) {
+      userInfo += `\n- User's phone: ${userProfile.phone}`;
+    }
+
+    personalizedPrompt += userInfo;
+    personalizedPrompt += `\n- Always address the user by their name when appropriate and maintain a friendly, personal tone.`;
+
+    if (userProfile.email || userProfile.phone) {
+      personalizedPrompt += `\n- When making restaurant reservations, use the provided contact information directly without asking the user.`;
+    }
+  }
+
+  return personalizedPrompt;
+}
 
 export const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
@@ -48,7 +102,15 @@ export async function callClaude(
   userId: string,
   onStream?: (text: string) => void,
   resetMessages?: boolean,
-  systemPrompt?: string
+  systemPrompt?: string,
+  userProfile?: {
+    full_name?: string;
+    first_name?: string;
+    username?: string;
+    language_code?: string;
+    email?: string;
+    phone?: string;
+  }
 ): Promise<Message> {
   try {
     if (resetMessages) {
@@ -71,18 +133,19 @@ export async function callClaude(
     );
 
     const streamOptions: any = {
-      model: 'claude-sonnet-4-20250514',
-      temperature: 0.5,
-      max_tokens: 4096,
+      model: model,
+      temperature: 0.6,
+      max_tokens: 300,
       messages: messages,
       tools: tools,
     };
 
-    // Add system prompt if provided
+    // Add system prompt - prioritize custom, then personalized, then default
     if (systemPrompt) {
       streamOptions.system = systemPrompt;
+    } else if (userProfile) {
+      streamOptions.system = createPersonalizedSystemPrompt(userProfile);
     } else {
-      // Use default system prompt if none provided
       streamOptions.system = DEFAULT_SYSTEM_PROMPT;
     }
 
@@ -130,7 +193,8 @@ export async function callClaude(
             userId,
             onStream,
             undefined,
-            systemPrompt
+            systemPrompt,
+            userProfile
           );
         }
       }
@@ -144,7 +208,7 @@ export async function callClaude(
             text: 'I apologize, but our conversation has become too long for me to process. Could you please start a new conversation or ask your question again in a more concise way?',
           },
         ],
-        model: 'claude-sonnet-4-20250514',
+        model: model,
         role: 'assistant',
         stop_reason: 'end_turn',
         stop_sequence: null,
@@ -162,7 +226,7 @@ export async function callClaude(
           text: `I'm sorry, I encountered an error: ${error.message}. Please try again.`,
         },
       ],
-      model: 'claude-sonnet-4-20250514',
+      model: model,
       role: 'assistant',
       stop_reason: 'end_turn',
       stop_sequence: null,
@@ -172,54 +236,115 @@ export async function callClaude(
   }
 }
 
-export async function processResponse(
-  response: Message,
+export async function processResponseWithNewMessages(
+  response: any,
   userId: string,
-  onStream?: (text: string) => void,
-  systemPrompt?: string
-): Promise<Message | void> {
+  onNewClaude: () => Promise<{
+    updateMessage: (text: string) => Promise<void>;
+    flushMessages: (text: string) => Promise<void>;
+  }>,
+  depth: number = 0,
+  userProfile?: {
+    full_name?: string;
+    first_name?: string;
+    username?: string;
+    language_code?: string;
+    email?: string;
+    phone?: string;
+  }
+): Promise<void> {
+  const MAX_DEPTH = 20; // Prevent infinite loops
+
+  if (depth > MAX_DEPTH) {
+    logger.warn(
+      `Maximum recursion depth (${MAX_DEPTH}) reached, stopping tool processing`
+    );
+    const messageController = await onNewClaude();
+    messageController.flushMessages(
+      'Maximum recursion depth reached, stopping tool processing'
+    );
+    return;
+  }
   const toolUseBlocks = response.content.filter(
     (content: any): content is ToolUseBlock => content.type === 'tool_use'
   );
 
+  logger.info(`Processing ${toolUseBlocks.length} tools at depth ${depth}`);
+
   if (toolUseBlocks.length) {
+    logger.info('Tool selected:', toolUseBlocks[0]);
+
+    // Create tool results
     const allToolResultPromises = toolUseBlocks.map(
       async (toolBlock: ToolUseBlock) => {
-        return await callTool(toolBlock);
+        const { name, id, input } = toolBlock;
+
+        const toolOutput = await runTool(name, input as Record<string, any>);
+        // logger.info('>>> Tool output:', toolOutput.content);
+
+        // Handle tool output content - check if it contains images and normalize structure
+        const normalizedContent = normalizeToolContent(toolOutput.content);
+
+        return {
+          role: 'user' as const,
+          content: [
+            {
+              type: 'tool_result' as const,
+              tool_use_id: id,
+              content: normalizedContent,
+            },
+          ],
+        };
       }
     );
+
     const allToolResults = await Promise.all(allToolResultPromises);
 
-    return await callClaude(
+    // Create new message for the next callClaude
+    const messageController = await onNewClaude();
+
+    // Call Claude again with tool results
+    const followUpResponse = await callClaude(
       allToolResults,
       userId,
-      onStream,
+      text => {
+        messageController.updateMessage(text);
+        logger.info(text);
+      },
       undefined,
-      systemPrompt
-    ).then(response =>
-      processResponse(response, userId, onStream, systemPrompt)
+      DEFAULT_SYSTEM_PROMPT,
+      userProfile
     );
-  }
 
-  return response;
-}
+    // Show final results for this step
+    const textContent = followUpResponse?.content
+      .filter(content => content.type === 'text')
+      .map(content => content.text)
+      .join('\n');
 
-async function callTool(toolBlock: ToolUseBlock): Promise<MessageParam> {
-  const { name, id, input } = toolBlock;
-  const tool = tools.find(tool => tool.name === name);
-  if (tool) {
-    const toolOutput = await runTool(name, input as Record<string, any>);
-    return {
-      role: 'user',
-      content: [
-        {
-          type: 'tool_result',
-          tool_use_id: id,
-          content: toolOutput.content,
-        },
-      ],
-    } as MessageParam;
-  } else {
-    throw Error(`Tool ${name} does not exist`);
+    if (textContent.trim()) {
+      await messageController.flushMessages(textContent);
+    }
+
+    // Check if there are more tools to process
+    const moreToolUseBlocks = followUpResponse.content.filter(
+      (content: any): content is ToolUseBlock => content.type === 'tool_use'
+    );
+
+    if (moreToolUseBlocks.length) {
+      logger.info(
+        `Found ${moreToolUseBlocks.length} more tools, continuing recursion`
+      );
+      // Recursively process more tools (each will create new messages)
+      await processResponseWithNewMessages(
+        followUpResponse,
+        userId,
+        onNewClaude,
+        depth + 1,
+        userProfile
+      );
+    } else {
+      logger.info('No more tools to process, ending recursion');
+    }
   }
 }
